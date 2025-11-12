@@ -1,0 +1,42 @@
+#include <p18f4520.h>
+#include <stdio.h>
+#include <delays.h>
+
+#pragma config OSC = HS         
+#pragma config WDT = OFF       
+#pragma config LVP = OFF        
+
+void InitUSART()
+{
+	TRISCbits.TRISC6 = 1; 
+	TRISCbits.TRISC7 = 1; 	
+	SPBRG = 31 ;		  
+	TXSTA = 0x20;		  
+	RCSTAbits.SPEN =1;	  
+	RCSTAbits.CREN =1;	  
+}
+
+unsigned char getchar(void)
+{
+	unsigned char ch;
+	while (!(PIR1bits.RCIF==1));	
+	ch=RCREG;						
+	return ch;
+}
+
+unsigned char putchar(unsigned char ch)
+{
+	while (!(PIR1bits.TXIF==1));
+	TXREG=ch;						
+	return ch;
+}
+
+void main (void)
+{
+	InitUSART() ;
+	printf("Hello PIC18f4520!\r\n") ;
+	while(1)
+	{
+	    putchar(getchar());
+	}
+}
