@@ -1,0 +1,56 @@
+Description   : This file contains Interface With Relay,Buzzer,Switch,Led's.
+A. when button 1 is pressed relay and buzzer is turned ON and LED’s start chasing from left to right 
+B. when button 2 is pressed relay and buzzer is turned OFF and Led start chasing from right to left 
+***************************************************************************/
+#include <p18f4520.h>
+#include <delays.h>
+
+#define BUZZER  PORTAbits.RA3 	
+#define SWITCH0 PORTBbits.RB0	
+#define SWITCH1 PORTBbits.RB1	
+
+void main(void) 
+{
+	TRISA = 0x00;		
+	TRISB = 0xff;		
+	TRISD = 0x00;		
+	PORTD = 0xff;	    
+	
+ 	while (1) 
+	{
+        if(!SWITCH1)       
+        {
+			while (1) 
+			{
+	            BUZZER =1;			
+	            PORTD = 0x37;		
+	            Delay10KTCYx(100);	
+	            PORTD = 0x3B;		
+	            Delay10KTCYx(100);	
+	            PORTD = 0x3D;
+	            Delay10KTCYx(100);
+	            PORTD = 0x3E;
+	            Delay10KTCYx(100);
+	 			if(!SWITCH0)		
+        	}
+		}
+        else if(!SWITCH0)	
+        {
+			while (1) 
+			{
+	            BUZZER =0;			
+	            PORTD = 0xcE;	
+	            Delay10KTCYx(100);
+	            PORTD = 0xcD;		
+	            Delay10KTCYx(100);
+	            PORTD = 0xcB;
+	            Delay10KTCYx(100);
+	            PORTD = 0xc7;
+	            Delay10KTCYx(100);
+				if(!SWITCH1)		
+				break;
+			}       
+ 		}
+    }
+}
+
