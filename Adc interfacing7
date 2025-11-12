@@ -1,0 +1,203 @@
+#include <p18f4520.h>
+#include <stdio.h>
+#include <delays.h>
+#include "lcd.h"
+
+#pragma config OSC = HS         // High-speed oscillator
+#pragma config  WDT = OFF        // Watchdog Timer disabled
+#pragma config LVP = OFF        // Low-voltage Programming disabled
+
+void InitADC(void)
+{
+	TRISA |= 0x01;						//RA0 = Input
+	ADCON0 = 0x01;						//Enable ADC and Select Channel 0 (RA0/AN0))
+	ADCON1 = 0x00;						//Select Reference Voltage (VDD-VSS)
+	ADCON2 = 0x8E;						//Select Acquisition Time and Conversion Clock
+}
+
+void main(void)
+{
+	unsigned int Lresult=0, Hresult=0;
+	unsigned int Result;
+	unsigned long int voltage;
+	char adc_read[16],test[16]="ADC POT TEST";
+
+	lcdinit();
+	InitADC() ;
+	DisplayRow (1,test);
+	while(1)
+	{
+		ADCON0 |= 0x02;							//Start of Conversion
+		while( !(ADCON0 & 0x02));				//Monitor Done Bit (EOF)
+		Lresult = ADRESL;						//Read Lower Byte of Result
+		Hresult = ADRESH;						//Read Higher Byte of Result
+		Result = ((Hresult << 8) | Lresult) & 0x3ff;		//Combine the Result
+		voltage = ((Result*5000UL)/1024); 		// convert ADC count into voltage
+		sprintf(adc_read,"C=0x%x:%lumV",Result,voltage );	//Conversion to ASCII
+		DisplayRow (2,adc_read);				//Send Data on Display
+	}
+}
+
+
+LCD Program
+/***************************************************************************
+ File : LCD.c,Author: www.spjsystems.com,Date: September 2014
+ LCD connections:
+ RC0	RC1		RE2		RE1		RE0		RC2		
+ RS		EN		D7		D6		D5		D4		
+ 4 bit interface is used.
+***************************************************************************/
+
+#include <p18f4520.h>
+#include <stdio.h>
+#include <delays.h>
+#include "lcd.h"
+/*
+Delay10KTCYx(1)4mS
+Delay10KTCYx(2)8mS
+*/
+
+#define rs LATCbits.LATC0
+#define en LATCbits.LATC1
+
+void lcdcmd1(unsigned char command)
+{
+	LATCbits.LATC2 = (command) & 0x1;		//RC2=1
+	LATEbits.LATE0 = (command >> 1 ) & 0x1;	//RE0=1
+	LATEbits.LATE1 = (command >> 2)  & 0x1;	//RE1=0
+	LATEbits.LATE2 = (command >> 3 ) & 0x1;	//RE2=0
+	en=0;
+	rs=0;
+	Delay10KTCYx(1);
+	en=1;
+	Delay10KTCYx(1);
+	en=0;
+	Delay10KTCYx(1);
+}
+
+void lcdcmd(unsigned char value)
+{
+/*
+exmple value command =0x38 =>
+Require to send command lik this Way:
+highernibble = 0   0   1   1    | 0   0   0   0
+      	       D7  D6  D5  D4   | D3  D2  D1  D0			
+			   RE2 RE1 RE0 RC2		
+lowernibble =  1   0   0   0   | 0   0   0   0
+		       D7  D6  D5  D4  | D3  D2  D1  D0			
+here D0-D3 is not used because of 4-Bit DATA LINES
+So we have to send data(0x3 & 0x8) on D4-D7 Data lines  two times
+*/	
+	char lowernibble=0,highernibble=0;
+
+	//Exmaple Value =0x38
+	lowernibble = value & 0x0f;					//lowernibble  = 0x08			
+	highernibble = value & 0xf0;				//highernibble = 0x30		
+	highernibble = (highernibble  >>4) & 0x0f ;	//highernibble = 0x03
+	lcdcmd1(highernibble);
+	lcdcmd1(lowernibble);
+	Delay10KTCYx(2);
+}
+
+void lcddata1(unsigned char data)
+{
+	//data = 0x38=>0x03,0x08 nibble 
+	LATCbits.LATC2 = (data) & 0x1;		//RC2=1
+	LATEbits.LATE0 = (data >> 1 ) & 0x1;	//RE0=1
+	LATEbits.LATE1 = (data >> 2)  & 0x1;	//RE1=0
+	LATEbits.LATE2 = (data >> 3 ) & 0x1;	//RE2=0
+	rs=1;
+	Delay10KTCYx(1);
+	en=0;
+	Delay10KTCYx(1);
+	en=1;
+	Delay10KTCYx(1);
+	en=0;
+	Delay10KTCYx(1);
+}
+
+void lcddata(unsigned char value)
+{
+/*
+exmple value command =0x38 =>
+Require to send command lik this Way:
+highernibble = 0   0   1   1    | 0   0   0   0
+      	       D7  D6  D5  D4   | D3  D2  D1  D0			
+			   RE2 RE1 RE0 RC2		
+lowernibble =  1   0   0   0   | 0   0   0   0
+		       D7  D6  D5  D4  | D3  D2  D1  D0			
+here D0-D3 is not used because of 4-Bit DATA LINES
+So we have to send data(0x3 & 0x8) on D4-D7 Data lines  two times
+*/	
+	char lowernibble=0,highernibble=0;
+	//Exmaple Value =0x38
+	lowernibble  = value & 0x0f;				//lowernibble  = 0x08			
+	highernibble = value & 0xf0;				//highernibble = 0x30		
+	highernibble = (highernibble  >>4) & 0x0f ;	//highernibble = 0x03	
+	lcddata1(highernibble);
+	lcddata1(lowernibble);
+	Delay10KTCYx(2);
+}
+void lcdinit()
+{
+	//Configure OutPut Pin
+	TRISEbits.RE0 = 0	;	//OUTPUT DIR OF RE0
+	TRISEbits.RE1 = 0	;	//OUTPUT DIR OF RE1
+	TRISEbits.RE2 = 0	;	//OUTPUT DIR OF RE2
+	TRISCbits.RC0 = 0	;	//OUTPUT DIR OF RC0
+	TRISCbits.RC1 = 0	;	//OUTPUT DIR OF RC1
+	TRISCbits.RC2 = 0	;	//OUTPUT DIR OF RC2
+	
+	//Make Output Value =0 to all Pins
+	PORTEbits.RE0 =  0;
+	PORTEbits.RE1 =  0;
+	PORTEbits.RE2 =  0;
+	PORTCbits.RC0 =  0;
+	PORTCbits.RC1 =  0;
+	PORTCbits.RC1 =  0;
+
+	Delay10KTCYx(1);
+	lcdcmd(0x03);
+	Delay10KTCYx(1);
+	lcdcmd(0x03);
+	Delay10KTCYx(2);
+	lcdcmd(0x03);
+	Delay10KTCYx(2);
+	lcdcmd(0x02);
+	Delay10KTCYx(2);
+	lcdcmd(0x28);
+	lcdcmd(0x08);
+	lcdcmd(0x0c);
+	lcdcmd(0x06);
+}
+
+void DisplayRow (int row, char *str)
+{
+/*
+	pass pointer to 16 character string
+	displayes the message on line1 or line2 of LCD, depending on whether row is 1 or 2.
+*/
+	int k ;
+	//Either Line 1 select or select Line 2
+	if (row == 1)
+	{
+		lcdcmd(0x80) ;
+	}
+	if(row == 2)
+	{
+		lcdcmd(0xc0) ;
+	}
+	//After Selection of LCD Line send Data from 0 to 15 Char
+	for(k = 0 ; k < 16 ; k ++)
+	{
+		if (str[k])
+			lcddata(str[k]) ;
+		else
+			break ;
+	}
+	while(k < 16)
+	{
+		lcddata(' ') ;
+		k ++ ;
+	}
+}
