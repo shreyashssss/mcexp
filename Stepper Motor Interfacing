@@ -1,0 +1,37 @@
+Program:
+10.08 13:39
+#include <reg51.h>
+
+sbit IN1 = P2^0;
+sbit IN2 = P2^1;
+sbit IN3 = P2^2;
+sbit IN4 = P2^3;
+
+void delay(unsigned int ms) {
+    unsigned int i, j;
+    for (i = 0; i < ms; i++) {
+        for (j = 0; j < 1275; j++) {
+            ; // do nothing
+        }
+    }
+}
+
+void clockwise() {
+    IN1 = 1; IN2 = 0; IN3 = 0; IN4 = 0; delay(50);
+    IN1 = 0; IN2 = 1; IN3 = 0; IN4 = 0; delay(50);
+    IN1 = 0; IN2 = 0; IN3 = 1; IN4 = 0; delay(50);
+    IN1 = 0; IN2 = 0; IN3 = 0; IN4 = 1; delay(50);
+}
+
+void main() {
+    while (1) {
+        clockwise();
+    }
+}
+
+
+
+
+
+
+
